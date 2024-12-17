@@ -7,10 +7,8 @@ __global__ void reduce_in_place_shared_memory(float* input, int n) {
     int tid = threadIdx.x;
     int index = 2 * blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Load two elements from global memory into shared memory, if within bounds
-    //shared[tid] = (index < n ? input[index] : 0.0f) + (index + blockDim.x < n ? input[index + blockDim.x] : 0.0f);
-    shared[tid] = input[index] + input[index + blockDim.x];
-
+    // Load two elements from global memory into shared memory, if within bounds  - shared[tid] = input[index] + input[index + blockDim.x];
+    shared[tid] = (index < n ? input[index] : 0.0f) + (index + blockDim.x < n ? input[index + blockDim.x] : 0.0f);
     __syncthreads();  // Ensure all threads have loaded their data into shared memory
 
     // Perform in-place reduction within shared memory
