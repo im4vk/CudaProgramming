@@ -9,7 +9,7 @@ __global__ void reduce_in_place(float* input, int n) {
     for (int stride = 1; stride < blockDim.x; stride *= 2) {
         __syncthreads();  // Ensure all threads have completed the previous iteration
 
-        if (tid % (2 * stride) == 0 && index + stride < n) {
+        if ( index + stride < n) {
             // Perform reduction and store the sum back in place
             input[index] += input[index + stride];
         }
