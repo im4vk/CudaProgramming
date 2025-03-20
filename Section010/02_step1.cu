@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
-#define N 512            // Assume N is a multiple of TILE_SIZE
+#define N 1024            // Assume N is a multiple of TILE_SIZE
 #define TILE_SIZE 16     // Could also use 32 for some GPUs
 
 // GPU Kernel: Tiled MM (assuming N % TILE_SIZE == 0)

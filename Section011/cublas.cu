@@ -74,3 +74,4 @@ int main() {
     cublasDestroy(handle);
     return 0;
 }
+

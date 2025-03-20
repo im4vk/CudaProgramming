@@ -2,7 +2,7 @@
 #include <cuda.h>
 #include <cuda_fp16.h>
 
-#define N 2048
+#define N 1024
 
 __global__ void matMulCUDA(half *A, half *B, half *C) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
