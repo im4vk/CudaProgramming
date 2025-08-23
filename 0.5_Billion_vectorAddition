@@ -1,0 +1,120 @@
+#include <cuda_runtime.h>
+#include "device_launch_parameters.h"
+#include <stdio.h>
+
+#define TOTAL_SIZE        (1024*1024*512)      // total elements to process
+#define CHUNK_SIZE        (1024*1024*8)       // elements per chunk
+#define THREADS_PER_BLOCK (1024)
+
+__global__ void vectorAdd(const int* A, const int* B, int* C, int n) {
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < n) C[tid] = A[tid] + B[tid];
+}
+
+__global__ void block_info(){
+    printf("block id %d --- thread id %d --- warp id %d\n", blockIdx.x, threadIdx.x, threadIdx.x / 32);
+}
+
+void fill_random(int* a, int n) {
+    for (int i = 0; i < n; ++i) {
+        a[i] = rand() % 100;
+    }
+}
+
+void print_sample(const int* A, const int* B, const int* C, int n) {
+    int head = n < 10 ? n : 10;
+    for (int i = 0; i < head; ++i) {
+        printf("%2d + %2d --> %d\n", A[i], B[i], C[i]);
+    }
+    if (n > 10) {
+        printf("---------\n");
+        int start = (n - 10);
+        for (int i = start; i < n; ++i) {
+            printf("%2d + %2d --> %d\n", A[i], B[i], C[i]);
+        }
+    }
+    printf("--------------------------------\n");
+}
+
+void print_device_info() {
+    int nDevices;
+
+    cudaGetDeviceCount(&nDevices);
+    for (int i = 0; i < nDevices; i++) {
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, i);
+        printf("  Device Number: %d\n", i);
+        printf("  Device name: %s\n", prop.name);
+        printf("  Memory Clock Rate (KHz): %d\n",
+               prop.memoryClockRate);
+        printf("  Memory Bus Width (bits): %d\n",prop.memoryBusWidth);
+        printf("  Peak Memory Bandwidth (GB/s): %f\n\n",
+               2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6);
+        printf("  Total global memory: %lu\n", prop.totalGlobalMem);
+        printf("  Compute capability: %d.%d\n",
+               prop.major, prop.minor);
+        printf("  Number of SMs: %d\n",
+               prop.multiProcessorCount);
+        printf("  Max threads per block: %d\n",
+               prop.maxThreadsPerBlock);
+        printf("  Max threads dimensions: x = %d, y = %d, z = %d\n",
+               prop.maxThreadsDim[0], prop.maxThreadsDim[1], prop.maxThreadsDim[2]);
+        printf("  Max grid dimensions: x = %d, y = %d, z = %d\n",
+               prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
+    }
+
+}
+
+void vector_add() {
+    // device buffers sized for one chunk
+    // int *dA = nullptr, *dB = nullptr, *dC = nullptr;
+    int *dA, *dB, *dC; // device memory
+    
+    // allocate device memory
+    cudaMalloc((void **)&dA, CHUNK_SIZE * sizeof(int));
+    cudaMalloc((void **)&dB, CHUNK_SIZE * sizeof(int));
+    cudaMalloc((void **)&dC, CHUNK_SIZE * sizeof(int));
+
+    // host buffers for one chunk
+    int* A = (int*)malloc(CHUNK_SIZE * sizeof(int));
+    int* B = (int*)malloc(CHUNK_SIZE * sizeof(int));
+    int* C = (int*)malloc(CHUNK_SIZE * sizeof(int));
+
+    int BLOCK_SIZE = (CHUNK_SIZE + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+
+    // process in chunks
+    for (int offset = 0; offset < TOTAL_SIZE; offset += CHUNK_SIZE) {
+        int n = CHUNK_SIZE;
+        if (offset + n > TOTAL_SIZE) n = TOTAL_SIZE - offset;  // last partial chunk
+
+        printf("\n%d... offset: %d, current_chunk_size: %d\n", 1+(offset / CHUNK_SIZE), offset, n);
+
+        // init host data for this chunk
+        fill_random(A, n);
+        fill_random(B, n);
+
+        // H2D
+        cudaMemcpy(dA, A, n * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(dB, B, n * sizeof(int), cudaMemcpyHostToDevice);
+
+        // launch (blocks computed per-chunk!)
+        vectorAdd<<<BLOCK_SIZE, THREADS_PER_BLOCK>>>(dA, dB, dC, n);
+        cudaDeviceSynchronize();
+
+        // D2H
+        cudaMemcpy(C, dC, n * sizeof(int), cudaMemcpyDeviceToHost);
+
+        // print only from the **local** chunk buffers (indices 0..n-1)
+        print_sample(A, B, C, n);
+    }
+
+    // cleanup
+    cudaFree(dA); cudaFree(dB); cudaFree(dC);
+    free(A); free(B); free(C);
+}
+
+int main() {
+    // vector_add();
+    print_device_info();
+    return 0;
+}
