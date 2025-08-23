@@ -19,3 +19,5 @@ CE’s GPU backends usually don’t have a physical NVIDIA GPU, so device kernel
 
 If CE changes the compiler ID later, replace compiler: nvcc125u1 with the new one from the CUDA dropdown on the noscript page.
 you can find it in networks, https://godbolt.org/noscript/cuda after hitting compile
+
+python3 cuda.py <filename.cu>
